@@ -20,11 +20,26 @@
                     <div class="controls">
                         <button id="clearBtn" class="btn btn-danger">盤面をクリア</button>
                         <button id="fillBtn" class="btn btn-info">全て埋める</button>
+                        
                         <div class="piece-selector">
-                            <label>ブロック選択：</label>
-                            <select id="pieceSelect">
-                                <option value="empty">空き</option>
-                                <option value="block" selected>ブロック</option>
+                            <label>モード選択：</label>
+                            <select id="modeSelect">
+                                <option value="block" selected>ブロック配置</option>
+                                <option value="empty">消す</option>
+                            </select>
+                        </div>
+
+                        <div class="color-selector">
+                            <label>色選択：</label>
+                            <select id="colorSelect">
+                                <option value="1">I (赤)</option>
+                                <option value="2">O (青緑)</option>
+                                <option value="3">T (黄)</option>
+                                <option value="4">S (緑)</option>
+                                <option value="5">Z (ピンク)</option>
+                                <option value="6">J (紫)</option>
+                                <option value="7">L (薄ピンク)</option>
+                                <option value="8">おじゃまミノ (水色)</option>
                             </select>
                         </div>
                     </div>
@@ -64,11 +79,10 @@
         </main>
 
         <footer>
-            <p>テトリス パフェ率計算エディタ v1.0</p>
+            <p>テトリス パフェ率計算エディタ v1.1</p>
         </footer>
     </div>
 
-    <script src="fumen.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
