@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>テトリス パフェ率計算エディタ</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧱 テトリス パフェ率計算エディタ</h1>
+            <p>盤面を描いて、パフェ率を計算しよう</p>
+        </header>
+
+        <main>
+            <div class="editor-section">
+                <div class="editor-controls">
+                    <h2>盤面エディタ</h2>
+                    <div class="controls">
+                        <button id="clearBtn" class="btn btn-danger">盤面をクリア</button>
+                        <button id="fillBtn" class="btn btn-info">全て埋める</button>
+                        <div class="piece-selector">
+                            <label>ブロック選択：</label>
+                            <select id="pieceSelect">
+                                <option value="empty">空き</option>
+                                <option value="block" selected>ブロック</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="editor-grid-wrapper">
+                    <div id="grid" class="grid"></div>
+                </div>
+
+                <div class="editor-actions">
+                    <button id="calculateBtn" class="btn btn-success btn-large">パフェ率を計算</button>
+                </div>
+            </div>
+
+            <div class="result-section">
+                <h2>計算結果</h2>
+                <div id="results" class="results-box">
+                    <p class="placeholder">計算ボタンを押してください</p>
+                </div>
+            </div>
+
+            <div class="data-section">
+                <h2>データ入出力</h2>
+                <div class="data-controls">
+                    <div class="data-input">
+                        <label for="fumeninput">Fumen形式を貼り付け：</label>
+                        <textarea id="fumenInput" placeholder="例: v115@..."></textarea>
+                        <button id="loadBtn" class="btn btn-info">読み込む</button>
+                    </div>
+                    <div class="data-output">
+                        <label for="fumenOutput">Fumen形式：</label>
+                        <textarea id="fumenOutput" placeholder="ここに出力されます" readonly></textarea>
+                        <button id="copyBtn" class="btn btn-info">コピー</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>テトリス パフェ率計算エディタ v1.0</p>
+        </footer>
+    </div>
+
+    <script src="fumen.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
