@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: tetris-perfect-clear-analyzer
+    env: docker
+    dockerfilePath: ./Dockerfile
+    buildCommand: "docker build -t app ."
+    startCommand: "npm start"
+    ports:
+      - port: 3000
