@@ -3,7 +3,21 @@ const GRID_WIDTH = 10;
 const GRID_HEIGHT = 20;
 let grid = Array(GRID_HEIGHT).fill(null).map(() => Array(GRID_WIDTH).fill(0));
 
-let selectedPiece = 'block';
+// テトリミノの色
+const COLORS = {
+    0: 'white',      // 空
+    1: '#FF6B6B',    // I (赤)
+    2: '#4ECDC4',    // O (青緑)
+    3: '#FFE66D',    // T (黄)
+    4: '#95E1D3',    // S (緑)
+    5: '#F38181',    // Z (ピンク)
+    6: '#AA96DA',    // J (紫)
+    7: '#FCBAD3',    // L (薄ピンク)
+    8: '#A8D8EA'     // おじゃまミノ (水色)
+};
+
+let selectedColor = 1; // デフォルトはI (赤)
+let currentMode = 'block'; // 'block' または 'empty'
 
 // ページ読み込み時
 document.addEventListener('DOMContentLoaded', () => {
@@ -22,9 +36,10 @@ function initializeGrid() {
             cell.className = 'cell';
             cell.dataset.x = x;
             cell.dataset.y = y;
+            cell.dataset.color = grid[y][x];
             
-            if (grid[y][x] === 1) {
-                cell.classList.add('filled');
+            if (grid[y][x] !== 0) {
+                cell.style.backgroundColor = COLORS[grid[y][x]];
             }
             
             cell.addEventListener('click', () => toggleCell(x, y, cell));
@@ -35,14 +50,17 @@ function initializeGrid() {
 
 // セルのトグル
 function toggleCell(x, y, cellElement) {
-    const mode = document.getElementById('pieceSelect').value;
+    const mode = document.getElementById('modeSelect').value;
     
     if (mode === 'empty') {
         grid[y][x] = 0;
-        cellElement.classList.remove('filled');
+        cellElement.style.backgroundColor = 'white';
+        cellElement.dataset.color = 0;
     } else {
-        grid[y][x] = 1;
-        cellElement.classList.add('filled');
+        const color = parseInt(document.getElementById('colorSelect').value);
+        grid[y][x] = color;
+        cellElement.style.backgroundColor = COLORS[color];
+        cellElement.dataset.color = color;
     }
 }
 
@@ -53,8 +71,13 @@ function setupEventListeners() {
     document.getElementById('calculateBtn').addEventListener('click', calculatePerfectClear);
     document.getElementById('loadBtn').addEventListener('click', loadFromFumen);
     document.getElementById('copyBtn').addEventListener('click', copyFumen);
-    document.getElementById('pieceSelect').addEventListener('change', (e) => {
-        selectedPiece = e.target.value;
+    
+    document.getElementById('modeSelect').addEventListener('change', (e) => {
+        currentMode = e.target.value;
+    });
+    
+    document.getElementById('colorSelect').addEventListener('change', (e) => {
+        selectedColor = parseInt(e.target.value);
     });
 }
 
@@ -66,12 +89,32 @@ function clearGrid() {
 
 // グリッド全て埋める
 function fillGrid() {
-    grid = Array(GRID_HEIGHT).fill(null).map(() => Array(GRID_WIDTH).fill(1));
+    const color = parseInt(document.getElementById('colorSelect').value);
+    grid = Array(GRID_HEIGHT).fill(null).map(() => Array(GRID_WIDTH).fill(color));
     initializeGrid();
 }
 
+// 盤面をFumen形式に変換
+function gridToFumen() {
+    let fumenData = 'v115@';
+    
+    // 行ごとにエンコード
+    for (let y = GRID_HEIGHT - 1; y >= 0; y--) {
+        for (let x = 0; x < GRID_WIDTH; x++) {
+            const cell = grid[y][x];
+            if (cell === 0) {
+                fumenData += '0';
+            } else {
+                fumenData += 'X';
+            }
+        }
+    }
+    
+    return fumenData;
+}
+
 // パフェ率計算
-function calculatePerfectClear() {
+async function calculatePerfectClear() {
     const resultsBox = document.getElementById('results');
     
     // 盤面が全て空の場合
@@ -81,49 +124,51 @@ function calculatePerfectClear() {
         return;
     }
     
-    // 簡易的なパフェ率計算
-    const filledCount = grid.flat().filter(cell => cell === 1).length;
-    const totalCells = GRID_WIDTH * GRID_HEIGHT;
-    const percent = ((filledCount / totalCells) * 100).toFixed(2);
+    // ローディング表示
+    resultsBox.innerHTML = '<p class="placeholder">計算中...</p>';
     
-    // 結果を表示
-    let html = `
-        <div class="result-item">
-            <div class="result-label">盤面の埋まり率</div>
-            <div class="result-value">${percent}%</div>
-        </div>
-        <div class="result-item">
-            <div class="result-label">埋まったセル数</div>
-            <div class="result-value">${filledCount}/${totalCells}</div>
-        </div>
-        <div class="result-item">
-            <div class="result-label">空いたセル数</div>
-            <div class="result-value">${totalCells - filledCount}</div>
-        </div>
-    `;
-    
-    resultsBox.innerHTML = html;
-    
-    // Fumen形式を生成
-    generateFumen();
-}
-
-// Fumen形式生成（簡易版）
-function generateFumen() {
-    // 盤面データをBase64で符号化する簡易版
-    let fumenData = 'v115@';
-    
-    // 各行をエンコード（簡易版）
-    for (let y = 0; y < GRID_HEIGHT; y++) {
-        let rowData = '';
-        for (let x = 0; x < GRID_WIDTH; x++) {
-            rowData += grid[y][x] ? '1' : '0';
+    try {
+        // サーバーに計算リクエストを送信
+        const fieldData = gridToFumen();
+        const response = await fetch('https://tetris-perfect-clear-analyzer.onrender.com/api/calculate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ field: fieldData })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Server error');
         }
-        // 簡易的なエンコード
-        fumenData += rowData;
+        
+        const result = await response.json();
+        
+        // 結果を表示
+        let html = `
+            <div class="result-item">
+                <div class="result-label">パフェ率</div>
+                <div class="result-value">${result.percent.toFixed(2)}%</div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">セットアップ率</div>
+                <div class="result-value">${result.setupRate.toFixed(2)}%</div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">パターン数</div>
+                <div class="result-value">${result.patterns.length}</div>
+            </div>
+        `;
+        
+        resultsBox.innerHTML = html;
+        
+        // Fumen形式を生成
+        document.getElementById('fumenOutput').value = fieldData;
+        
+    } catch (error) {
+        console.error('Error:', error);
+        resultsBox.innerHTML = '<p class="placeholder" style="color: red;">エラーが発生しました</p>';
     }
-    
-    document.getElementById('fumenOutput').value = fumenData;
 }
 
 // Fumenから読み込む
@@ -135,9 +180,7 @@ function loadFromFumen() {
         return;
     }
     
-    // 簡易的なデコード
     alert('Fumen読み込み機能は準備中です');
-    // TODO: 本格的なFumenデコード実装
 }
 
 // Fumenをコピー
