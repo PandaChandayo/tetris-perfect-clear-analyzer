@@ -130,7 +130,7 @@ async function calculatePerfectClear() {
     try {
         // サーバーに計算リクエストを送信
         const fieldData = gridToFumen();
-        const response = await fetch('https://tetris-perfect-clear-analyzer.onrender.com/api/calculate', {
+        const response = await fetch('https://tetris-perfect-clear-analyzer-server.onrender.com/api/calculate', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
