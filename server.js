@@ -1,93 +1,87 @@
 const express = require('express');
 const cors = require('cors');
-const bodyParser = require('body-parser');
-const { exec } = require('child_process');
-const path = require('path');
+const { execSync } = require('child_process');
 const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ミドルウェア
 app.use(cors());
-app.use(bodyParser.json());
-app.use(express.static('.')); // 静的ファイルを提供
-
-// ルートエンドポイント
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
+app.use(express.json());
 
 // パフェ率計算エンドポイント
-app.post('/api/calculate', async (req, res) => {
+app.post('/api/calculate', (req, res) => {
     try {
         const { field } = req.body;
-        
+
         if (!field) {
             return res.status(400).json({ error: 'Field data is required' });
         }
 
-        // 盤面データをファイルに一時保存
-        const fieldFilePath = path.join(__dirname, 'temp_field.txt');
-        fs.writeFileSync(fieldFilePath, field);
+        // 入力ファイルを作成
+        const inputDir = '/app/input';
+        if (!fs.existsSync(inputDir)) {
+            fs.mkdirSync(inputDir, { recursive: true });
+        }
 
-        // Solution Finderコマンドを実行
-        // 注意：Solution Finderをインストールする必要があります
-        const command = `java -jar solution-finder.jar percent -f ${fieldFilePath}`;
+        const inputFile = path.join(inputDir, 'field.txt');
+        fs.writeFileSync(inputFile, field);
 
-        exec(command, (error, stdout, stderr) => {
-            // 一時ファイルを削除
-            if (fs.existsSync(fieldFilePath)) {
-                fs.unlinkSync(fieldFilePath);
-            }
+        // Solution Finder を実行
+        const command = `cd /app && java -jar sfinder.jar percent -f ${inputFile}`;
+        const output = execSync(command, { encoding: 'utf-8' });
 
-            if (error) {
-                console.error('Error:', error);
-                return res.status(500).json({ 
-                    error: 'Calculation failed',
-                    details: stderr 
-                });
-            }
+        // 結果をパース
+        const result = parseOutput(output);
 
-            // 結果を解析
-            const result = parseResult(stdout);
-            res.json(result);
+        res.json({
+            percent: result.percent,
+            setupRate: result.setupRate,
+            patterns: result.patterns,
+            maxPerfectField: result.maxPerfectField
         });
 
     } catch (error) {
-        console.error('Server error:', error);
-        res.status(500).json({ error: 'Server error' });
+        console.error('Error:', error);
+        res.status(500).json({ 
+            error: 'Calculation failed',
+            message: error.message 
+        });
     }
 });
 
-// 結果解析関数
-function parseResult(output) {
-    // Solution Finderの出力を解析
-    // 詳細な解析ロジックはSolution Finderの出力形式に応じて調整
-    
+// 結果をパース（Solution Finder の出力から抽出）
+function parseOutput(output) {
+    // 簡易パース（Solution Finder の出力形式に合わせて）
     const lines = output.split('\n');
-    const result = {
-        percent: 0,
-        patterns: [],
-        setupRate: 0
-    };
+    let percent = 0;
+    let setupRate = 0;
+    let patterns = [];
+    let maxPerfectField = '';
 
-    lines.forEach(line => {
-        if (line.includes('Percent')) {
-            const match = line.match(/Percent\s*:\s*([\d.]+)%/);
-            if (match) result.percent = parseFloat(match[1]);
+    for (const line of lines) {
+        if (line.includes('%')) {
+            const match = line.match(/(\d+\.?\d*)\s*%/);
+            if (match) {
+                percent = parseFloat(match[1]);
+            }
         }
-        if (line.includes('Setup')) {
-            const match = line.match(/Setup\s*:\s*([\d.]+)%/);
-            if (match) result.setupRate = parseFloat(match[1]);
+        if (line.includes('setup')) {
+            const match = line.match(/(\d+\.?\d*)\s*%/);
+            if (match) {
+                setupRate = parseFloat(match[1]);
+            }
         }
-    });
+        if (line.includes('http')) {
+            patterns.push(line.trim());
+            maxPerfectField = line.trim();
+        }
+    }
 
-    return result;
+    return { percent, setupRate, patterns, maxPerfectField };
 }
 
-// サーバー起動
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
-    console.log(`Access: http://localhost:${PORT}`);
 });
