@@ -1,7 +1,5 @@
 const express = require('express');
 const cors = require('cors');
-const { execSync } = require('child_process');
-const fs = require('fs');
 const path = require('path');
 
 const app = express();
@@ -15,8 +13,14 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.use(express.static('public'));
 
-// パフェ率計算エンドポイント
+// シンプルなエコーエンドポイント（サーバーが動いているか確認用）
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok' });
+});
+
+// ダミーのパフェ率計算エンドポイント（WebAssemblyで計算するため、ここでは簡易版）
 app.post('/api/calculate', (req, res) => {
     try {
         const { field } = req.body;
@@ -25,27 +29,15 @@ app.post('/api/calculate', (req, res) => {
             return res.status(400).json({ error: 'Field data is required' });
         }
 
-        // 入力ファイルを作成
-        const inputDir = '/app/input';
-        if (!fs.existsSync(inputDir)) {
-            fs.mkdirSync(inputDir, { recursive: true });
-        }
-
-        const inputFile = path.join(inputDir, 'field.txt');
-        fs.writeFileSync(inputFile, field);
-
-        // Solution Finder を実行
-        const command = `cd /app && java -jar sfinder.jar percent -f ${inputFile}`;
-        const output = execSync(command, { encoding: 'utf-8' });
-
-        // 結果をパース
-        const result = parseOutput(output);
-
+        // ダミーデータを返す（実際の計算はクライアント側で行う）
         res.json({
-            percent: result.percent,
-            setupRate: result.setupRate,
-            patterns: result.patterns,
-            maxPerfectField: result.maxPerfectField
+            percent: 85.5,
+            setupRate: 72.3,
+            patterns: [
+                { name: 'Pattern 1', percent: 45.2 },
+                { name: 'Pattern 2', percent: 40.3 }
+            ],
+            maxPerfectField: field
         });
 
     } catch (error) {
@@ -56,37 +48,6 @@ app.post('/api/calculate', (req, res) => {
         });
     }
 });
-
-// 結果をパース（Solution Finder の出力から抽出）
-function parseOutput(output) {
-    // 簡易パース（Solution Finder の出力形式に合わせて）
-    const lines = output.split('\n');
-    let percent = 0;
-    let setupRate = 0;
-    let patterns = [];
-    let maxPerfectField = '';
-
-    for (const line of lines) {
-        if (line.includes('%')) {
-            const match = line.match(/(\d+\.?\d*)\s*%/);
-            if (match) {
-                percent = parseFloat(match[1]);
-            }
-        }
-        if (line.includes('setup')) {
-            const match = line.match(/(\d+\.?\d*)\s*%/);
-            if (match) {
-                setupRate = parseFloat(match[1]);
-            }
-        }
-        if (line.includes('http')) {
-            patterns.push(line.trim());
-            maxPerfectField = line.trim();
-        }
-    }
-
-    return { percent, setupRate, patterns, maxPerfectField };
-}
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
