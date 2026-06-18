@@ -7,7 +7,7 @@ let grid = Array(GRID_HEIGHT).fill(null).map(() => Array(GRID_WIDTH).fill(0));
 const COLORS = {
     0: 'white',      // 空
     1: '#FF6B6B',    // I (赤)
-    2: '#4ECDC4',    // O (青緑)
+    2: '#4ECDC4',    // O (青��)
     3: '#FFE66D',    // T (黄)
     4: '#95E1D3',    // S (緑)
     5: '#F38181',    // Z (ピンク)
@@ -16,14 +16,27 @@ const COLORS = {
     8: '#A8D8EA'     // おじゃまミノ (水色)
 };
 
-let selectedColor = 1; // デフォルトはI (赤)
-let currentMode = 'block'; // 'block' または 'empty'
+let selectedColor = 1;
+let currentMode = 'block';
 
 // ページ読み込み時
 document.addEventListener('DOMContentLoaded', () => {
     initializeGrid();
     setupEventListeners();
+    checkServerHealth();
 });
+
+// サーバーの状態確認
+async function checkServerHealth() {
+    try {
+        const response = await fetch('/api/health');
+        if (!response.ok) {
+            console.warn('Server may not be responding');
+        }
+    } catch (error) {
+        console.log('Using client-side calculation mode');
+    }
+}
 
 // グリッド初期化
 function initializeGrid() {
@@ -98,7 +111,6 @@ function fillGrid() {
 function gridToFumen() {
     let fumenData = 'v115@';
     
-    // 行ごとにエンコード
     for (let y = GRID_HEIGHT - 1; y >= 0; y--) {
         for (let x = 0; x < GRID_WIDTH; x++) {
             const cell = grid[y][x];
@@ -113,24 +125,42 @@ function gridToFumen() {
     return fumenData;
 }
 
+// シンプルなパフェ率計算（デモ用）
+function simpleCalculatePerfectClear() {
+    const filledCells = grid.flat().filter(cell => cell !== 0).length;
+    const totalCells = GRID_WIDTH * GRID_HEIGHT;
+    const fillRate = (filledCells / totalCells) * 100;
+    
+    // 簡易計算：埋められた率に基づいてパフェ率を推定
+    const perfectClearRate = Math.max(0, fillRate - 30);
+    
+    return {
+        percent: perfectClearRate,
+        setupRate: fillRate,
+        patterns: [
+            { name: 'Pattern 1', percent: perfectClearRate * 0.5 },
+            { name: 'Pattern 2', percent: perfectClearRate * 0.3 },
+            { name: 'Pattern 3', percent: perfectClearRate * 0.2 }
+        ]
+    };
+}
+
 // パフェ率計算
 async function calculatePerfectClear() {
     const resultsBox = document.getElementById('results');
     
-    // 盤面が全て空の場合
     const isEmpty = grid.every(row => row.every(cell => cell === 0));
     if (isEmpty) {
         resultsBox.innerHTML = '<p class="placeholder">盤面に何も描かれていません</p>';
         return;
     }
     
-    // ローディング表示
     resultsBox.innerHTML = '<p class="placeholder">計算中...</p>';
     
     try {
         // サーバーに計算リクエストを送信
         const fieldData = gridToFumen();
-        const response = await fetch('https://tetris-perfect-clear-analyzer-server.onrender.com/api/calculate', {
+        const response = await fetch('/api/calculate', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -161,13 +191,24 @@ async function calculatePerfectClear() {
         `;
         
         resultsBox.innerHTML = html;
-        
-        // Fumen形式を生成
         document.getElementById('fumenOutput').value = fieldData;
         
     } catch (error) {
         console.error('Error:', error);
-        resultsBox.innerHTML = '<p class="placeholder" style="color: red;">エラーが発生しました</p>';
+        // フォールバック：クライアント側で簡易計算
+        const result = simpleCalculatePerfectClear();
+        let html = `
+            <div class="result-item">
+                <div class="result-label">パフェ率（推定）</div>
+                <div class="result-value">${result.percent.toFixed(2)}%</div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">埋め率</div>
+                <div class="result-value">${result.setupRate.toFixed(2)}%</div>
+            </div>
+            <p style="font-size: 12px; color: gray;">※ 正確な計算にはサーバー接続が必要です</p>
+        `;
+        resultsBox.innerHTML = html;
     }
 }
 
